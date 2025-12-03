@@ -7,7 +7,6 @@ fn main() -> Result<()> {
     let data = day3::read_input(&arg1)?;
     let banks = day3::parse_input(&data)?;
 
-    let max_pairs = banks.iter().map(|bank| bank.max_pairs());
     println!(
         "Part 1 with part 2 logic: {:?}",
         banks
@@ -16,6 +15,7 @@ fn main() -> Result<()> {
             .sum::<u64>()
     );
 
+    let max_pairs = banks.iter().map(|bank| bank.max_pairs());
     println!("Part 1: {}", max_pairs.sum::<u64>());
     let part2 = banks
         .iter()
