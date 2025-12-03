@@ -1,0 +1,6 @@
+[workspace]
+members = ["common","day1", "day2", "day3"]
+resolver = "2"
+
+[workspace.dependencies]
+anyhow = "1.0.100"
