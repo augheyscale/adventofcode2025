@@ -19,10 +19,6 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn rotations_to_directions(data: impl Iterator<Item = Rotation>) -> impl Iterator<Item = i32> {
-    data.map(|rotation| rotation.signed_direction())
-}
-
 fn part2(data: impl Iterator<Item = Rotation>) -> Result<()> {
     // given the data, get the rotation directions
     let rotation_directions = rotations_to_directions(data);
@@ -52,15 +48,16 @@ fn count_zero_positions_of_lock(mut lock: Lock, directions: impl Iterator<Item =
 /// Example: create_single_clicks(10) -> [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 /// Example: create_single_clicks(-5) -> [-1, -1, -1, -1]
 fn create_single_clicks(count: i32) -> impl Iterator<Item = i32> {
-    let (count, one_click) = if count < 0 { (-count, -1) } else { (count, 1) };
+    // Based on our direction, get the number of clicks and the unit click value
+    let (count, unit_click) = if count < 0 { (-count, -1) } else { (count, 1) };
 
-    (0..count).map(move |_| one_click)
+    (0..count).map(move |_| unit_click)
 }
 
 fn part1(data: impl Iterator<Item = Rotation>) -> Result<()> {
     // given the data, get the rotation directions
     // impl Iterator<Item = i32>
-    let rotation_directions = rotations_to_directions(data);
+    let rotation_directions = data.map(|rotation| rotation.signed_direction());
 
     // given the rotation directions, get the lock positions
     // impl Iterator<Item = u32>
