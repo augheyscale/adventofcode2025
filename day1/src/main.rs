@@ -1,8 +1,8 @@
 use anyhow::Result;
-use day1::{Rotations, lock::Lock, parse_data, read_data_lines};
+use day1::{Rotation, lock::Lock, parse_data, read_data_lines};
 
 // Note: this will panic on bad input
-fn data(input_file: &str) -> Result<impl Iterator<Item = Rotations>> {
+fn data(input_file: &str) -> Result<impl Iterator<Item = Rotation>> {
     let lines = read_data_lines(input_file)?;
     Ok(parse_data(lines))
 }
@@ -19,11 +19,11 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn rotations_to_directions(data: impl Iterator<Item = Rotations>) -> impl Iterator<Item = i32> {
+fn rotations_to_directions(data: impl Iterator<Item = Rotation>) -> impl Iterator<Item = i32> {
     data.map(|rotation| rotation.signed_direction())
 }
 
-fn part2(data: impl Iterator<Item = Rotations>) -> Result<()> {
+fn part2(data: impl Iterator<Item = Rotation>) -> Result<()> {
     // given the data, get the rotation directions
     let rotation_directions = rotations_to_directions(data);
 
@@ -57,7 +57,7 @@ fn create_single_clicks(count: i32) -> impl Iterator<Item = i32> {
     (0..count).map(move |_| one_click)
 }
 
-fn part1(data: impl Iterator<Item = Rotations>) -> Result<()> {
+fn part1(data: impl Iterator<Item = Rotation>) -> Result<()> {
     // given the data, get the rotation directions
     // impl Iterator<Item = i32>
     let rotation_directions = rotations_to_directions(data);
