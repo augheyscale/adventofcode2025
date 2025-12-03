@@ -8,8 +8,6 @@ fn main() -> Result<()> {
     let banks = day3::parse_input(&data)?;
 
     let max_pairs = banks.iter().map(|bank| bank.max_pairs());
-    println!("Part 1: Max pairs: {:?}", max_pairs.collect::<Vec<u64>>());
-    let max_pairs = banks.iter().map(|bank| bank.max_pairs());
     println!(
         "Part 1 with part 2 logic: {:?}",
         banks
