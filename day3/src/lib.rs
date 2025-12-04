@@ -24,7 +24,7 @@ impl FromStr for BatteryBank {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let batteries = s
             .chars()
-            .map(|c| Battery::from_char(c))
+            .map(Battery::from_char)
             .collect::<Result<Vec<_>>>()?;
         // must have at least 2 batteries
         if batteries.len() < 2 {
