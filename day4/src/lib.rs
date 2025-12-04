@@ -107,7 +107,7 @@ impl<Inner> Grid<Inner> {
             grid: self,
         })
     }
-    pub fn get_mut<'a>(&'a mut self, xy: XY) -> Option<&'a mut Inner> {
+    pub fn get_mut(&mut self, xy: XY) -> Option<&mut Inner> {
         self.cells.get_mut(xy.y)?.get_mut(xy.x)
     }
 }
