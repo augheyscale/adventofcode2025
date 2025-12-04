@@ -12,12 +12,13 @@ impl Cell {
         matches!(self, Cell::Empty)
     }
 }
-impl Cell {
-    fn from_char(c: char) -> Result<Self> {
-        match c {
-            '.' => Ok(Cell::Empty),
-            '@' => Ok(Cell::Paper),
-            _ => Err(anyhow::anyhow!("Invalid cell: {}", c)),
+impl FromStr for Cell {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self> {
+        match s {
+            "." => Ok(Cell::Empty),
+            "@" => Ok(Cell::Paper),
+            _ => Err(anyhow::anyhow!("Invalid cell: {}", s)),
         }
     }
 }
@@ -30,57 +31,55 @@ impl std::fmt::Display for Cell {
     }
 }
 
-pub struct CellInGrid<'a> {
-    cell: &'a Cell,
+pub struct CellInGrid<'a, Inner> {
+    cell: &'a Inner,
     xy: XY,
-    grid: &'a Grid,
+    grid: &'a Grid<Inner>,
 }
-impl std::fmt::Debug for CellInGrid<'_> {
+impl<Inner> std::fmt::Debug for CellInGrid<'_, Inner>
+where
+    Inner: std::fmt::Debug,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self.xy)
     }
 }
-impl CellInGrid<'_> {
+impl<Inner> CellInGrid<'_, Inner> {
     pub fn xy(&self) -> XY {
         self.xy.clone()
     }
-    pub fn adjacent_cells<'a>(&'a self) -> impl Iterator<Item = CellInGrid<'a>> {
+    pub fn adjacent_cells<'a>(&'a self) -> impl Iterator<Item = CellInGrid<'a, Inner>> {
         self.xy
             .adjacent_positions()
             .filter_map(|xy| self.grid.get(xy))
     }
-    pub fn is_empty(&self) -> bool {
-        self.cell.is_empty()
-    }
-    pub fn has_paper(&self) -> bool {
-        !self.is_empty()
-    }
-    pub fn is_accessible(&self) -> bool {
-        // A cell is accessible if there are fewer than 4 rolls of paper adjacent to it.
-        let empty_adjacent_cells = self.adjacent_cells().filter(|cell| cell.has_paper());
-        empty_adjacent_cells.count() < 4
+    pub fn value(&self) -> &Inner {
+        self.cell
     }
 }
 
 #[derive(Eq, PartialEq)]
-pub struct Grid {
-    cells: Vec<Vec<Cell>>,
+pub struct Grid<Inner> {
+    cells: Vec<Vec<Inner>>,
 }
-impl FromStr for Grid {
-    type Err = anyhow::Error;
+impl<Inner: FromStr> FromStr for Grid<Inner> {
+    type Err = <Inner as FromStr>::Err;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let cells = s
             .lines()
             .map(|line| {
                 line.chars()
-                    .map(|c| Cell::from_char(c))
-                    .collect::<Result<Vec<_>>>()
+                    .map(|c| Inner::from_str(&c.to_string()))
+                    .collect::<Result<Vec<_>, Self::Err>>()
             })
-            .collect::<Result<Vec<Vec<_>>>>()?;
+            .collect::<Result<Vec<Vec<_>>, Self::Err>>()?;
         Ok(Grid { cells })
     }
 }
-impl std::fmt::Debug for Grid {
+impl<Inner> std::fmt::Debug for Grid<Inner>
+where
+    Inner: std::fmt::Display,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for row in &self.cells {
             for cell in row {
@@ -91,8 +90,8 @@ impl std::fmt::Debug for Grid {
         Ok(())
     }
 }
-impl Grid {
-    pub fn cells<'a>(&'a self) -> impl Iterator<Item = CellInGrid<'a>> {
+impl<Inner> Grid<Inner> {
+    pub fn cells<'a>(&'a self) -> impl Iterator<Item = CellInGrid<'a, Inner>> {
         self.cells.iter().enumerate().flat_map(move |(y, row)| {
             row.iter().enumerate().map(move |(x, cell)| CellInGrid {
                 cell,
@@ -101,27 +100,36 @@ impl Grid {
             })
         })
     }
-    pub fn get<'a>(&'a self, xy: XY) -> Option<CellInGrid<'a>> {
+    pub fn get<'a>(&'a self, xy: XY) -> Option<CellInGrid<'a, Inner>> {
         Some(CellInGrid {
             cell: self.cells.get(xy.y)?.get(xy.x)?,
             xy,
             grid: self,
         })
     }
-    pub fn get_mut<'a>(&'a mut self, xy: XY) -> Option<&'a mut Cell> {
+    pub fn get_mut<'a>(&'a mut self, xy: XY) -> Option<&'a mut Inner> {
         self.cells.get_mut(xy.y)?.get_mut(xy.x)
     }
-    /// Clears the cells at the given XYs and returns the number of cells cleared.
-    pub fn clear_cells(&mut self, xys: impl IntoIterator<Item = XY>) -> Result<usize> {
-        let mut cleared_count = 0;
-        for xy in xys {
-            *self
-                .get_mut(xy)
-                .ok_or_else(|| anyhow::anyhow!("Cell not found"))? = Cell::Empty;
-            cleared_count += 1;
+}
+
+/// Clears the cells at the given XYs and returns the number of cells cleared.
+pub fn remove_cells(cells: &mut Grid<Cell>, xys: impl IntoIterator<Item = XY>) -> Result<usize> {
+    let mut cleared_count = 0;
+    for xy in xys {
+        let cell = cells
+            .get_mut(xy)
+            .ok_or_else(|| anyhow::anyhow!("Cell not found"))?;
+
+        // Cannot remove an empty cell.
+        if cell.is_empty() {
+            anyhow::bail!("Tried to remove an empty cell");
         }
-        Ok(cleared_count)
+
+        // Remove the cell.
+        *cell = Cell::Empty;
+        cleared_count += 1;
     }
+    Ok(cleared_count)
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -160,8 +168,18 @@ pub fn read_file(path: &str) -> Result<String> {
     Ok(std::fs::read_to_string(path)?)
 }
 
-pub fn parse_data(data: &str) -> Result<Grid> {
-    data.parse::<Grid>()
+pub fn parse_data(data: &str) -> Result<Grid<Cell>> {
+    data.parse()
+}
+
+pub fn is_accessible(cell: &CellInGrid<Cell>) -> bool {
+    let adjacent_cells = cell.adjacent_cells();
+    let accessible_cells = adjacent_cells.filter(|c| matches!(c.value(), Cell::Paper));
+    accessible_cells.count() < 4
+}
+
+pub fn is_paper(cell: &CellInGrid<Cell>) -> bool {
+    matches!(cell.value(), Cell::Paper)
 }
 
 #[cfg(test)]
@@ -170,7 +188,7 @@ mod tests {
 
     #[test]
     fn test_bad_cell() {
-        let cell = Cell::from_char('X');
+        let cell = Cell::from_str("X");
         assert!(cell.is_err());
     }
 

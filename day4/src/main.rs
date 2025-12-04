@@ -1,5 +1,5 @@
 use anyhow::Result;
-use day4::Grid;
+use day4::{Cell, Grid};
 
 fn main() -> Result<()> {
     let arg1 = std::env::args()
@@ -14,10 +14,10 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn part1(grid: &Grid) -> Result<()> {
+fn part1(grid: &Grid<Cell>) -> Result<()> {
     let all_cells = grid.cells();
-    let cells_with_paper = all_cells.filter(|c| c.has_paper());
-    let accessible_paper_cell = cells_with_paper.filter(|c| c.is_accessible());
+    let cells_with_paper = all_cells.filter(day4::is_paper);
+    let accessible_paper_cell = cells_with_paper.filter(day4::is_accessible);
     println!(
         "Part 1: Accessible paper cells: {}",
         accessible_paper_cell.count()
@@ -25,17 +25,17 @@ fn part1(grid: &Grid) -> Result<()> {
     Ok(())
 }
 
-fn part2(grid: &mut Grid) -> Result<()> {
+fn part2(grid: &mut Grid<Cell>) -> Result<()> {
     let mut removed_count = 0;
     loop {
         let all_cells = grid.cells();
-        let cells_with_paper = all_cells.filter(|c| c.has_paper());
-        let accessible_paper_cell = cells_with_paper.filter(|c| c.is_accessible());
+        let cells_with_paper = all_cells.filter(day4::is_paper);
+        let accessible_paper_cell = cells_with_paper.filter(day4::is_accessible);
         // We have to collect the XYs to remove into a vector because the grid needs to be mutable.
         let xy_to_remove = accessible_paper_cell.map(|c| c.xy()).collect::<Vec<_>>();
 
         // Remove each of these cells from the grid
-        let cleared_count = grid.clear_cells(xy_to_remove)?;
+        let cleared_count = day4::remove_cells(grid, xy_to_remove)?;
         if cleared_count == 0 {
             break;
         }
