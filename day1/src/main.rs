@@ -21,7 +21,7 @@ fn main() -> Result<()> {
 
 fn part2(data: impl Iterator<Item = Rotation>) -> Result<()> {
     // given the data, get the rotation directions
-    let rotation_directions = rotations_to_directions(data);
+    let rotation_directions = data.map(|rotation| rotation.signed_direction());
 
     // impl Iterator<Item = i32>
     let one_click_per = rotation_directions.flat_map(create_single_clicks);
