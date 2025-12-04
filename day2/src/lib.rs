@@ -37,7 +37,7 @@ fn all_values_equal(iter: impl IntoIterator<Item = impl PartialEq>) -> bool {
     iter.all(|x| &x == first.as_ref().unwrap())
 }
 
-fn combinations_of_str<'a>(s: &'a str, count: usize) -> impl Iterator<Item = &'a str> {
+fn combinations_of_str(s: &str, count: usize) -> impl Iterator<Item = &str> {
     let ranges = (0..)
         .map(move |offset| offset * count)
         .map(move |offset| offset..offset + count);
