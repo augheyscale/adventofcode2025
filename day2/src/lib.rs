@@ -32,6 +32,7 @@ fn all_values_equal(iter: impl IntoIterator<Item = impl PartialEq>) -> bool {
     let mut iter = iter.into_iter();
     let first = iter.next();
     if first.is_none() {
+        // Indicates the iterator is empty.
         return false;
     }
     iter.all(|x| &x == first.as_ref().unwrap())
