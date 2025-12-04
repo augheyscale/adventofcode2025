@@ -1,3 +1,10 @@
+pub mod grid;
+
+/// Reads the contents of a file.
+pub fn read_file(path: &str) -> std::io::Result<String> {
+    Ok(std::fs::read_to_string(path)?)
+}
+
 pub fn sum_results<T: CheckedAdd<T> + Default, E>(
     i: impl Iterator<Item = anyhow::Result<T>>,
 ) -> anyhow::Result<T> {
