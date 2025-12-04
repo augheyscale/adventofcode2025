@@ -111,6 +111,17 @@ impl Grid {
     pub fn get_mut<'a>(&'a mut self, xy: XY) -> Option<&'a mut Cell> {
         self.cells.get_mut(xy.y)?.get_mut(xy.x)
     }
+    /// Clears the cells at the given XYs and returns the number of cells cleared.
+    pub fn clear_cells(&mut self, xys: impl IntoIterator<Item = XY>) -> Result<usize> {
+        let mut cleared_count = 0;
+        for xy in xys {
+            *self
+                .get_mut(xy)
+                .ok_or_else(|| anyhow::anyhow!("Cell not found"))? = Cell::Empty;
+            cleared_count += 1;
+        }
+        Ok(cleared_count)
+    }
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]

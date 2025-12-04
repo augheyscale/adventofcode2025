@@ -1,5 +1,5 @@
 use anyhow::Result;
-use day4::{Cell, Grid};
+use day4::Grid;
 
 fn main() -> Result<()> {
     let arg1 = std::env::args()
@@ -31,20 +31,15 @@ fn part2(grid: &mut Grid) -> Result<()> {
         let all_cells = grid.cells();
         let cells_with_paper = all_cells.filter(|c| c.has_paper());
         let accessible_paper_cell = cells_with_paper.filter(|c| c.is_accessible());
+        // We have to collect the XYs to remove into a vector because the grid needs to be mutable.
         let xy_to_remove = accessible_paper_cell.map(|c| c.xy()).collect::<Vec<_>>();
+
         // Remove each of these cells from the grid
-        let mut removed_something = false;
-        for xy in xy_to_remove {
-            let cell = grid
-                .get_mut(xy)
-                .ok_or_else(|| anyhow::anyhow!("Cell not found"))?;
-            *cell = Cell::Empty;
-            removed_something = true;
-            removed_count += 1;
-        }
-        if !removed_something {
+        let cleared_count = grid.clear_cells(xy_to_remove)?;
+        if cleared_count == 0 {
             break;
         }
+        removed_count += cleared_count;
     }
     println!("Part 2: Removed count: {}", removed_count);
     Ok(())
