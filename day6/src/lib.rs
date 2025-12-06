@@ -105,15 +105,18 @@ impl Worksheet {
     }
 }
 
-fn column_numbers(
-    grid: &[impl AsRef<[char]>],
+fn column_numbers<IT: Iterator<Item = impl AsRef<[char]>> + DoubleEndedIterator>(
+    grid: impl IntoIterator<Item = impl AsRef<[char]>, IntoIter = IT> + Clone,
     start_index: usize,
     end_index: usize,
 ) -> impl Iterator<Item = u64> {
-    (start_index..end_index).map(move |column_index| accumlate_column(grid, column_index))
+    (start_index..end_index).map(move |column_index| accumlate_column(grid.clone(), column_index))
 }
 
-fn accumlate_column(grid: &[impl AsRef<[char]>], column_index: usize) -> u64 {
+fn accumlate_column<IT: Iterator<Item = impl AsRef<[char]>> + DoubleEndedIterator>(
+    grid: impl IntoIterator<Item = impl AsRef<[char]>, IntoIter = IT>,
+    column_index: usize,
+) -> u64 {
     let mut place_value = 1;
     walk_up_column(grid, column_index)
         .filter_map(|c| c.to_digit(10))
@@ -125,8 +128,13 @@ fn accumlate_column(grid: &[impl AsRef<[char]>], column_index: usize) -> u64 {
         })
 }
 
-fn walk_up_column(grid: &[impl AsRef<[char]>], column_index: usize) -> impl Iterator<Item = char> {
-    grid.iter().rev().map(move |row| row.as_ref()[column_index])
+fn walk_up_column<IT: Iterator<Item = impl AsRef<[char]>> + DoubleEndedIterator>(
+    grid: impl IntoIterator<Item = impl AsRef<[char]>, IntoIter = IT>,
+    column_index: usize,
+) -> impl Iterator<Item = char> {
+    grid.into_iter()
+        .rev()
+        .map(move |row| row.as_ref()[column_index])
 }
 
 // Accumulates the column widths and returns the start and end indices of each column.
