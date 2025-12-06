@@ -59,50 +59,48 @@ impl FromStr for Worksheet {
     }
 }
 
-impl Worksheet {
-    pub fn parse_part2(input: &str) -> anyhow::Result<(Vec<Vec<u64>>, Vec<Operation>)> {
-        let lines = input.lines().collect::<Vec<_>>();
-        // Split lines into the grid and operations.  Operations is the last line.
-        let (operations, grid_lines) = lines
-            .split_last()
-            .ok_or_else(|| anyhow::anyhow!("No operations line found"))?;
+pub fn parse_part2(input: &str) -> anyhow::Result<(Vec<Vec<u64>>, Vec<Operation>)> {
+    let lines = input.lines().collect::<Vec<_>>();
+    // Split lines into the grid and operations.  Operations is the last line.
+    let (operations, grid_lines) = lines
+        .split_last()
+        .ok_or_else(|| anyhow::anyhow!("No operations line found"))?;
 
-        // Split out the operations first, this will help tell how wide the columns are.
-        // Operations look like "*    *  +   *  "
-        // where the number of spaces between the operations is the width of the columns.
-        let operations = split_operations_part2(operations).collect::<Vec<_>>();
-        // Create a nxm grid of chars.
-        let grid = grid_lines
-            .iter()
-            .map(|line| line.chars().collect::<Vec<_>>())
-            .collect::<Vec<_>>();
+    // Split out the operations first, this will help tell how wide the columns are.
+    // Operations look like "*    *  +   *  "
+    // where the number of spaces between the operations is the width of the columns.
+    let operations = split_operations_part2(operations).collect::<Vec<_>>();
+    // Create a nxm grid of chars.
+    let grid = grid_lines
+        .iter()
+        .map(|line| line.chars().collect::<Vec<_>>())
+        .collect::<Vec<_>>();
 
-        // Assert all rows are the same length.
-        {
-            let row_length = grid
-                .get(0)
-                .ok_or_else(|| anyhow::anyhow!("No grid rows found"))?
-                .len();
-            if grid.iter().any(|row| row.len() != row_length) {
-                return Err(anyhow::anyhow!("Grid row lengths do not match"));
-            }
+    // Assert all rows are the same length.
+    {
+        let row_length = grid
+            .get(0)
+            .ok_or_else(|| anyhow::anyhow!("No grid rows found"))?
+            .len();
+        if grid.iter().any(|row| row.len() != row_length) {
+            return Err(anyhow::anyhow!("Grid row lengths do not match"));
         }
-
-        let column_indices = column_indices(operations.iter().map(|operation| operation.len()));
-
-        let column_numbers = column_indices
-            .map(|(start_index, end_index)| {
-                column_numbers(&grid, start_index, end_index).collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-
-        let operations = operations
-            .iter()
-            .map(|op| Operation::from_str(op.trim()).context("Failed to parse operation"))
-            .collect::<Result<Vec<_>, _>>()?;
-
-        Ok((column_numbers, operations))
     }
+
+    let column_indices = column_indices(operations.iter().map(|operation| operation.len()));
+
+    let column_numbers = column_indices
+        .map(|(start_index, end_index)| {
+            column_numbers(&grid, start_index, end_index).collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+
+    let operations = operations
+        .iter()
+        .map(|op| Operation::from_str(op.trim()).context("Failed to parse operation"))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok((column_numbers, operations))
 }
 
 fn column_numbers<IT: Iterator<Item = impl AsRef<[char]>> + DoubleEndedIterator>(

@@ -16,7 +16,7 @@ fn main() -> Result<()> {
 
     println!("Part 1: {}", results.sum::<u64>());
 
-    let (column_numbers, operations) = day6::Worksheet::parse_part2(&input)?;
+    let (column_numbers, operations) = day6::parse_part2(&input)?;
     let results = column_numbers
         .into_iter()
         .zip(operations.into_iter())
