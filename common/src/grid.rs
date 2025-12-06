@@ -56,14 +56,25 @@ pub struct Grid<Inner> {
 impl<Inner: FromStr> FromStr for Grid<Inner> {
     type Err = <Inner as FromStr>::Err;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let cells = s
-            .lines()
+        Self::from_lines(s.lines())
+    }
+}
+impl<Inner> Grid<Inner>
+where
+    Inner: FromStr,
+{
+    pub fn from_lines(
+        lines: impl IntoIterator<Item = impl AsRef<str>>,
+    ) -> Result<Self, <Inner as FromStr>::Err> {
+        let cells = lines
+            .into_iter()
             .map(|line| {
-                line.chars()
+                line.as_ref()
+                    .chars()
                     .map(|c| Inner::from_str(&c.to_string()))
-                    .collect::<Result<Vec<_>, Self::Err>>()
+                    .collect::<Result<Vec<_>, <Inner as FromStr>::Err>>()
             })
-            .collect::<Result<Vec<Vec<_>>, Self::Err>>()?;
+            .collect::<Result<Vec<Vec<_>>, <Inner as FromStr>::Err>>()?;
         Ok(Grid { cells })
     }
 }

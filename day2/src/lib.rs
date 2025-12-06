@@ -50,7 +50,7 @@ fn combinations_of_str(s: &str, count: usize) -> impl Iterator<Item = &str> {
 
 fn has_repeating_values(s: &str, count: usize) -> bool {
     // It can't generate equal substrings if the length is not divisible by the count.
-    if s.len().is_multiple_of(count) {
+    if !s.len().is_multiple_of(count) {
         return false;
     }
 
