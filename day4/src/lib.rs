@@ -37,7 +37,7 @@ pub fn remove_cells(cells: &mut Grid<Cell>, xys: impl IntoIterator<Item = XY>) -
     let mut cleared_count = 0;
     for xy in xys {
         let cell = cells
-            .get_mut(xy)
+            .get_mut(&xy)
             .ok_or_else(|| anyhow::anyhow!("Cell not found"))?;
 
         // Cannot remove an empty cell.
@@ -60,7 +60,7 @@ pub fn is_paper(cell: &CellInGrid<Cell>) -> bool {
 /// Checks if a cell is accessible based on the number of adjacent paper cells.
 /// A cell is accessible if it has less than 4 adjacent paper cells.
 pub fn is_accessible(cell: &CellInGrid<Cell>) -> bool {
-    let adjacent_cells = cell.adjacent_cells();
+    let adjacent_cells = cell.adjacent_cells_ref();
     let adjacent_cells_with_paper = adjacent_cells.filter(is_paper);
     adjacent_cells_with_paper.count() < 4
 }

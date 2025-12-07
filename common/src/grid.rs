@@ -8,6 +8,14 @@ pub struct XY {
     x: usize,
     y: usize,
 }
+
+impl std::hash::Hash for XY {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.x.hash(state);
+        self.y.hash(state);
+    }
+}
+
 impl XY {
     /// Creates a new position with the given coordinates.
     pub fn new(x: usize, y: usize) -> Self {
@@ -25,7 +33,7 @@ impl XY {
     }
 
     /// Returns an iterator of all adjacent positions, including diagonals.
-    pub fn adjacent_positions(&self) -> impl Iterator<Item = XY> {
+    pub fn adjacent_positions(&self) -> impl Iterator<Item = XY> + use<> {
         const DIRECTIONS: &[(isize, isize)] = &[
             // Up
             (-1, -1),
@@ -39,12 +47,23 @@ impl XY {
             (0, 1),
             (1, 1),
         ];
-        DIRECTIONS.iter().filter_map(|(dx, dy)| {
+        let (x, y) = (self.x, self.y);
+        DIRECTIONS.iter().filter_map(move |(dx, dy)| {
             Some(XY {
-                x: self.x.checked_add_signed(*dx)?,
-                y: self.y.checked_add_signed(*dy)?,
+                x: x.checked_add_signed(*dx)?,
+                y: y.checked_add_signed(*dy)?,
             })
         })
+    }
+
+    pub fn down(&self) -> Option<XY> {
+        self.y.checked_add(1).map(|y| XY::new(self.x, y))
+    }
+    pub fn left(&self) -> Option<XY> {
+        self.x.checked_sub(1).map(|x| XY::new(x, self.y))
+    }
+    pub fn right(&self) -> Option<XY> {
+        self.x.checked_add(1).map(|x| XY::new(x, self.y))
     }
 }
 
@@ -112,17 +131,34 @@ impl<Inner> Grid<Inner> {
         })
     }
     /// Gets a mutable reference to a cell at the specified position.
-    pub fn get_mut(&mut self, xy: XY) -> Option<&mut Inner> {
+    pub fn get_mut(&mut self, xy: &XY) -> Option<&mut Inner> {
         self.cells.get_mut(xy.y)?.get_mut(xy.x)
     }
 }
 
 /// A cell within a grid, providing access to the cell value and its position.
+#[derive(Clone, Eq)]
 pub struct CellInGrid<'a, Inner> {
     cell: &'a Inner,
     xy: XY,
     grid: &'a Grid<Inner>,
 }
+
+impl<Inner> PartialEq for CellInGrid<'_, Inner>
+where
+    Inner: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.xy == other.xy
+    }
+}
+
+impl<Inner> std::hash::Hash for CellInGrid<'_, Inner> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.xy.hash(state);
+    }
+}
+
 impl<Inner> std::fmt::Debug for CellInGrid<'_, Inner>
 where
     Inner: std::fmt::Debug,
@@ -131,10 +167,23 @@ where
         write!(f, "{:?}", self.xy)
     }
 }
-impl<Inner> CellInGrid<'_, Inner> {
+impl<'a, Inner> CellInGrid<'a, Inner> {
     /// Gets the position of this cell.
     pub fn xy(&self) -> XY {
         self.xy.clone()
+    }
+
+    pub fn down(&self) -> Option<CellInGrid<'_, Inner>> {
+        self.xy.down().and_then(|xy| self.grid.get(xy))
+    }
+    pub fn left_right(&self) -> [Option<CellInGrid<'a, Inner>>; 2] {
+        // Same trick: destructure self
+        let CellInGrid { cell: _, xy, grid } = self;
+
+        let left = xy.left().and_then(|xy| grid.get(xy));
+        let right = xy.right().and_then(|xy| grid.get(xy));
+
+        [left, right]
     }
 
     pub fn cardinal_direction_adjacent_cells(&self) -> impl Iterator<Item = CellInGrid<'_, Inner>> {
@@ -143,11 +192,17 @@ impl<Inner> CellInGrid<'_, Inner> {
             .filter_map(|xy| self.grid.get(xy))
     }
 
-    /// Returns an iterator over all adjacent cells in the grid.
-    pub fn adjacent_cells<'a>(&'a self) -> impl Iterator<Item = CellInGrid<'a, Inner>> {
+    pub fn adjacent_cells_ref(&self) -> impl Iterator<Item = CellInGrid<'_, Inner>> {
         self.xy
             .adjacent_positions()
-            .filter_map(|xy| self.grid.get(xy))
+            .filter_map(move |xy| self.grid.get(xy))
+    }
+
+    /// Returns an iterator over all adjacent cells in the grid.
+    pub fn adjacent_cells(self) -> impl Iterator<Item = CellInGrid<'a, Inner>> {
+        // Same trick: destructure self
+        let CellInGrid { cell: _, xy, grid } = self;
+        xy.adjacent_positions().filter_map(move |xy| grid.get(xy))
     }
     /// Gets the value stored in this cell.
     pub fn value(&self) -> &Inner {
