@@ -51,6 +51,30 @@ impl XYZ {
     }
 }
 
+/// A vector that can only be appended to, not modified.
+///
+/// This append-only behavior is critical for compile-time correctness of algorithms
+/// that use position indicies of the vector.  Position indicies can not
+/// be invalidated by modifications to the vector.
+#[derive(Default)]
+struct AppendOnlyVec<T> {
+    inner: Vec<T>,
+}
+impl<T> AppendOnlyVec<T> {
+    pub fn push(&mut self, value: T) {
+        self.inner.push(value);
+    }
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        self.inner.iter()
+    }
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+        self.inner.get_mut(index)
+    }
+}
+
 /// Parses input data into a vector of XYZ coordinates, one per line.
 pub fn parse_data(data: &str) -> Result<Vec<XYZ>> {
     data.lines().map(XYZ::from_str).collect::<Result<Vec<_>>>()
@@ -61,18 +85,18 @@ type Circuit<'a> = HashSet<&'a XYZ>;
 
 /// Initializes the data structures needed for circuit processing: an empty circuits vector,
 /// a mapping from junctions to circuit indices, and all pairs of possible junctions sorted by distance.
-pub fn initialize_circuits<'a>(
+fn initialize_circuits<'a>(
     xyzs: &'a [XYZ],
 ) -> (
-    Vec<Circuit<'a>>,
+    AppendOnlyVec<Circuit<'a>>,
     HashMap<&'a XYZ, usize>,
     Vec<(&'a XYZ, &'a XYZ)>,
 ) {
-    let circuits = Vec::<Circuit>::new();
-    let junction_to_circuit = HashMap::<&XYZ, usize>::new();
+    // Get all pairs of junctions and sort them by distance.
     let mut all_pairs = xyzs.iter().tuple_combinations().collect::<Vec<_>>();
     all_pairs.sort_by_key(|pair: &(&XYZ, &XYZ)| XYZ::sqr_distance(pair.0, pair.1));
-    (circuits, junction_to_circuit, all_pairs)
+
+    (Default::default(), Default::default(), all_pairs)
 }
 
 /// Processes the first 1000 closest junction pairs to form circuits, then returns the product
@@ -154,7 +178,7 @@ fn how_to_combine_junctions(circuit1: Option<&usize>, circuit2: Option<&usize>) 
 fn combine_junctions<'a>(
     junction0: &'a XYZ,
     junction1: &'a XYZ,
-    circuits: &mut Vec<Circuit<'a>>,
+    circuits: &mut AppendOnlyVec<Circuit<'a>>,
     junction_to_circuit: &mut HashMap<&'a XYZ, usize>,
 ) -> Action {
     let action = how_to_combine_junctions(
