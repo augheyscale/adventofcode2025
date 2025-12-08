@@ -6,6 +6,7 @@ use std::{
     str::FromStr,
 };
 
+/// Represents a 3D coordinate point with x, y, and z components.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct XYZ {
     x: u64,
@@ -13,6 +14,7 @@ pub struct XYZ {
     z: u64,
 }
 
+/// Parses an XYZ coordinate from a string in the format "x,y,z".
 impl FromStr for XYZ {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -40,6 +42,7 @@ impl FromStr for XYZ {
 }
 
 impl XYZ {
+    /// Calculates the squared Euclidean distance between two points.
     pub fn sqr_distance(a: &XYZ, b: &XYZ) -> u64 {
         let dx = a.x.abs_diff(b.x).pow(2);
         let dy = a.y.abs_diff(b.y).pow(2);
@@ -48,12 +51,16 @@ impl XYZ {
     }
 }
 
+/// Parses input data into a vector of XYZ coordinates, one per line.
 pub fn parse_data(data: &str) -> Result<Vec<XYZ>> {
     data.lines().map(XYZ::from_str).collect::<Result<Vec<_>>>()
 }
 
+/// A circuit is a set of connected junctions (XYZ points).
 type Circuit<'a> = HashSet<&'a XYZ>;
 
+/// Initializes the data structures needed for circuit processing: an empty circuits vector,
+/// a mapping from junctions to circuit indices, and all pairs of possible junctions sorted by distance.
 pub fn initialize_circuits<'a>(
     xyzs: &'a [XYZ],
 ) -> (
@@ -68,6 +75,8 @@ pub fn initialize_circuits<'a>(
     (circuits, junction_to_circuit, all_pairs)
 }
 
+/// Processes the first 1000 closest junction pairs to form circuits, then returns the product
+/// of the sizes of the three largest circuits.
 pub fn part1(xyzs: &[XYZ]) -> Result<usize> {
     let (mut circuits, mut junction_to_circuit, all_pairs) = initialize_circuits(xyzs);
 
@@ -80,12 +89,16 @@ pub fn part1(xyzs: &[XYZ]) -> Result<usize> {
         );
     }
 
+    // Some circuits go to empty as we combine them.  Filter out the empty circuits.
     let active_circuits = circuits.iter().filter(|circuit| !circuit.is_empty());
+    // Map the circuits to how many junctions are in each circuit.
     let mut num_circuits_in_active_circuits = active_circuits
         .map(|circuit| circuit.len())
         .collect::<Vec<_>>();
+    // Sort the circuits by size.
     num_circuits_in_active_circuits.sort();
 
+    // Take the three largest circuits and return the product of their sizes.
     let product = num_circuits_in_active_circuits
         .into_iter()
         .rev()
@@ -95,15 +108,22 @@ pub fn part1(xyzs: &[XYZ]) -> Result<usize> {
     Ok(product)
 }
 
+/// Represents the action to take when combining two junctions into circuits.
 enum Action {
+    // Circuits are the same, so do nothing.
     DoNothing,
+    // New circuit, so create a new circuit with the two junctions.
     NewCircuit,
+    // Add the second junction to the first circuit.
     Add1to0(usize),
+    // Add the first junction to the second circuit.
     Add0to1(usize),
+    // Combine the two circuits.
     CombineCircuits(usize, usize),
 }
 
-// Combines two junctions that might already be in circuits into a new circuit.
+/// Determines what action should be taken when combining two junctions based on whether
+/// they already belong to circuits.
 fn how_to_combine_junctions(circuit1: Option<&usize>, circuit2: Option<&usize>) -> Action {
     match (circuit1, circuit2) {
         (Some(circuit1), Some(circuit2)) => {
@@ -129,6 +149,8 @@ fn how_to_combine_junctions(circuit1: Option<&usize>, circuit2: Option<&usize>) 
     }
 }
 
+/// Combines two junctions into circuits according to the determined action, updating
+/// the circuits vector and junction-to-circuit mapping accordingly.
 fn combine_junctions<'a>(
     junction0: &'a XYZ,
     junction1: &'a XYZ,
@@ -187,6 +209,8 @@ fn combine_junctions<'a>(
     action
 }
 
+/// Processes all junction pairs in order of distance, forming circuits. Returns the product
+/// of the x coordinates of the last pair that resulted in a circuit combination.
 pub fn part2(xyzs: &[XYZ]) -> Result<u64> {
     let (mut circuits, mut junction_to_circuit, all_pairs) = initialize_circuits(xyzs);
 
