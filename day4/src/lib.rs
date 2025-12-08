@@ -2,7 +2,7 @@ use anyhow::Result;
 use common::grid::{CellInGrid, Grid, XY};
 
 /// Represents a cell in the grid, either empty or containing paper.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Cell {
     Empty,
     Paper,

@@ -72,6 +72,15 @@ impl XY {
 pub struct Grid<Inner> {
     cells: Vec<Vec<Inner>>,
 }
+
+impl<Inner: Clone> Clone for Grid<Inner> {
+    fn clone(&self) -> Self {
+        Grid {
+            cells: self.cells.clone(),
+        }
+    }
+}
+
 impl<Inner: FromStr> FromStr for Grid<Inner> {
     type Err = <Inner as FromStr>::Err;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -173,7 +182,13 @@ impl<'a, Inner> CellInGrid<'a, Inner> {
         self.xy.clone()
     }
 
-    pub fn down(&self) -> Option<CellInGrid<'_, Inner>> {
+    pub fn left(&self) -> Option<CellInGrid<'a, Inner>> {
+        self.xy.left().and_then(|xy| self.grid.get(xy))
+    }
+    pub fn right(&self) -> Option<CellInGrid<'a, Inner>> {
+        self.xy.right().and_then(|xy| self.grid.get(xy))
+    }
+    pub fn down(&self) -> Option<CellInGrid<'a, Inner>> {
         self.xy.down().and_then(|xy| self.grid.get(xy))
     }
     pub fn left_right(&self) -> [Option<CellInGrid<'a, Inner>>; 2] {

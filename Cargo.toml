@@ -1,6 +1,17 @@
 [workspace]
-members = ["common","day1", "day2", "day3", "day4", "day5", "day6", "day7"]
+members = [
+    "common",
+    "day1",
+    "day2",
+    "day3",
+    "day4",
+    "day5",
+    "day6",
+    "day7",
+    "day8",
+]
 resolver = "2"
 
 [workspace.dependencies]
 anyhow = "1.0.100"
+itertools = "0.14.0"
