@@ -80,43 +80,47 @@ pub fn parse_data(data: &str) -> Result<Vec<XYZ>> {
     data.lines().map(XYZ::from_str).collect::<Result<Vec<_>>>()
 }
 
+#[derive(Default)]
+struct CircuitManager<'a> {
+    circuits: AppendOnlyVec<Circuit<'a>>,
+    junction_to_circuit: HashMap<Junction<'a>, usize>,
+}
+impl<'a> CircuitManager<'a> {
+    pub fn circuits(&self) -> impl Iterator<Item = &Circuit<'a>> {
+        self.circuits.iter()
+    }
+    pub fn active_circuits(&self) -> impl Iterator<Item = &Circuit<'a>> {
+        self.circuits().filter(|circuit| !circuit.is_empty())
+    }
+}
+
+type Junction<'a> = &'a XYZ;
+
 /// A circuit is a set of connected junctions (XYZ points).
 type Circuit<'a> = HashSet<&'a XYZ>;
 
 /// Initializes the data structures needed for circuit processing: an empty circuits vector,
 /// a mapping from junctions to circuit indices, and all pairs of possible junctions sorted by distance.
-fn initialize_circuits<'a>(
-    xyzs: &'a [XYZ],
-) -> (
-    AppendOnlyVec<Circuit<'a>>,
-    HashMap<&'a XYZ, usize>,
-    Vec<(&'a XYZ, &'a XYZ)>,
-) {
+fn initialize_circuits<'a>(xyzs: &'a [XYZ]) -> (CircuitManager<'a>, Vec<(&'a XYZ, &'a XYZ)>) {
     // Get all pairs of junctions and sort them by distance.
     let mut all_pairs = xyzs.iter().tuple_combinations().collect::<Vec<_>>();
     all_pairs.sort_by_key(|pair: &(&XYZ, &XYZ)| XYZ::sqr_distance(pair.0, pair.1));
 
-    (Default::default(), Default::default(), all_pairs)
+    (Default::default(), all_pairs)
 }
 
 /// Processes the first 1000 closest junction pairs to form circuits, then returns the product
 /// of the sizes of the three largest circuits.
 pub fn part1(xyzs: &[XYZ]) -> Result<usize> {
-    let (mut circuits, mut junction_to_circuit, all_pairs) = initialize_circuits(xyzs);
+    let (mut circuits_manager, all_pairs) = initialize_circuits(xyzs);
 
     for (junction0, junction1) in all_pairs.into_iter().take(1000) {
-        combine_junctions(
-            junction0,
-            junction1,
-            &mut circuits,
-            &mut junction_to_circuit,
-        );
+        circuits_manager.combine_junctions(junction0, junction1);
     }
 
-    // Some circuits go to empty as we combine them.  Filter out the empty circuits.
-    let active_circuits = circuits.iter().filter(|circuit| !circuit.is_empty());
     // Map the circuits to how many junctions are in each circuit.
-    let mut num_circuits_in_active_circuits = active_circuits
+    let mut num_circuits_in_active_circuits = circuits_manager
+        .active_circuits()
         .map(|circuit| circuit.len())
         .collect::<Vec<_>>();
     // Sort the circuits by size.
@@ -175,77 +179,72 @@ fn how_to_combine_junctions(circuit1: Option<&usize>, circuit2: Option<&usize>) 
 
 /// Combines two junctions into circuits according to the determined action, updating
 /// the circuits vector and junction-to-circuit mapping accordingly.
-fn combine_junctions<'a>(
-    junction0: &'a XYZ,
-    junction1: &'a XYZ,
-    circuits: &mut AppendOnlyVec<Circuit<'a>>,
-    junction_to_circuit: &mut HashMap<&'a XYZ, usize>,
-) -> Action {
-    let action = how_to_combine_junctions(
-        junction_to_circuit.get(junction0),
-        junction_to_circuit.get(junction1),
-    );
-    match action {
-        Action::DoNothing => {}
-        Action::NewCircuit => {
-            // Create a new circuit with the two junctions.
-            let circuit = Circuit::from([junction0, junction1]);
-            circuits.push(circuit);
+impl<'a> CircuitManager<'a> {
+    fn combine_junctions(&mut self, junction0: &'a XYZ, junction1: &'a XYZ) -> Action {
+        let circuits = &mut self.circuits;
+        let junction_to_circuit = &mut self.junction_to_circuit;
 
-            // Setup the index pointers in junction_to_circuit to point to the new circuit.
-            let circuit_index = circuits.len() - 1;
-            junction_to_circuit.insert(junction0, circuit_index);
-            junction_to_circuit.insert(junction1, circuit_index);
-        }
-        Action::Add1to0(circuit) => {
-            circuits
-                .get_mut(circuit)
-                .expect("circuit")
-                .insert(junction1);
-            junction_to_circuit.insert(junction1, circuit);
-        }
-        Action::Add0to1(circuit) => {
-            circuits
-                .get_mut(circuit)
-                .expect("circuit")
-                .insert(junction0);
-            junction_to_circuit.insert(junction0, circuit);
-        }
-        Action::CombineCircuits(circuit1_index, circuit2_index) => {
-            // We're going to clear circuit2 and add its junctions to circuit1.
+        let action = how_to_combine_junctions(
+            junction_to_circuit.get(junction0),
+            junction_to_circuit.get(junction1),
+        );
+        match action {
+            Action::DoNothing => {}
+            Action::NewCircuit => {
+                // Create a new circuit with the two junctions.
+                let circuit = Circuit::from([junction0, junction1]);
+                circuits.push(circuit);
 
-            // Take circuit2 from circuits and replace it with an empty set.
-            let circuit2 = std::mem::replace(
-                circuits.get_mut(circuit2_index).expect("circuit2"),
-                HashSet::new(),
-            );
+                // Setup the index pointers in junction_to_circuit to point to the new circuit.
+                let circuit_index = circuits.len() - 1;
+                junction_to_circuit.insert(junction0, circuit_index);
+                junction_to_circuit.insert(junction1, circuit_index);
+            }
+            Action::Add1to0(circuit) => {
+                circuits
+                    .get_mut(circuit)
+                    .expect("circuit")
+                    .insert(junction1);
+                junction_to_circuit.insert(junction1, circuit);
+            }
+            Action::Add0to1(circuit) => {
+                circuits
+                    .get_mut(circuit)
+                    .expect("circuit")
+                    .insert(junction0);
+                junction_to_circuit.insert(junction0, circuit);
+            }
+            Action::CombineCircuits(circuit1_index, circuit2_index) => {
+                // We're going to clear circuit2 and add its junctions to circuit1.
 
-            let circuit1 = circuits.get_mut(circuit1_index).expect("circuit1");
-            circuit1.extend(circuit2.iter());
+                // Take circuit2 from circuits and replace it with an empty set.
+                let circuit2 = std::mem::replace(
+                    circuits.get_mut(circuit2_index).expect("circuit2"),
+                    HashSet::new(),
+                );
 
-            // Change all circuit2 references to circuit1
-            for junction in circuit2.into_iter() {
-                let prev = junction_to_circuit.insert(junction, circuit1_index);
-                assert_eq!(prev, Some(circuit2_index));
+                let circuit1 = circuits.get_mut(circuit1_index).expect("circuit1");
+                circuit1.extend(circuit2.iter());
+
+                // Change all circuit2 references to circuit1
+                for junction in circuit2.into_iter() {
+                    let prev = junction_to_circuit.insert(junction, circuit1_index);
+                    assert_eq!(prev, Some(circuit2_index));
+                }
             }
         }
+        action
     }
-    action
 }
 
 /// Processes all junction pairs in order of distance, forming circuits. Returns the product
 /// of the x coordinates of the last pair that resulted in a circuit combination.
 pub fn part2(xyzs: &[XYZ]) -> Result<u64> {
-    let (mut circuits, mut junction_to_circuit, all_pairs) = initialize_circuits(xyzs);
+    let (mut circuits_manager, all_pairs) = initialize_circuits(xyzs);
 
     let mut last_x_coordinates = None;
     for (junction0, junction1) in all_pairs {
-        match combine_junctions(
-            junction0,
-            junction1,
-            &mut circuits,
-            &mut junction_to_circuit,
-        ) {
+        match circuits_manager.combine_junctions(junction0, junction1) {
             Action::DoNothing => {}
             _ => {
                 last_x_coordinates = Some((junction0.x, junction1.x));
