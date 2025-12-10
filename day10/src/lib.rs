@@ -20,7 +20,7 @@ pub fn parse_data(data: &str) -> Result<Vec<MachineDescription>> {
         .collect::<Result<Vec<_>>>()
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Light {
     Off,
     On,
@@ -44,7 +44,7 @@ impl Light {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct MachineState {
     lights: Vec<Light>,
 }
@@ -56,6 +56,9 @@ impl MachineState {
         MachineState {
             lights: vec![Light::Off; len],
         }
+    }
+    pub fn len(&self) -> usize {
+        self.lights.len()
     }
 }
 impl MachineState {
@@ -72,7 +75,7 @@ impl MachineState {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ButtonPressAction {
-    toggles: Vec<usize>,
+    pub toggles: Vec<usize>,
 }
 impl ButtonPressAction {
     pub fn new(toggles: Vec<usize>) -> Self {
@@ -82,9 +85,9 @@ impl ButtonPressAction {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MachineDescription {
-    desired_state: MachineState,
-    actions: Vec<ButtonPressAction>,
-    joltage_requirements: Vec<u32>,
+    pub desired_state: MachineState,
+    pub actions: Vec<ButtonPressAction>,
+    pub joltage_requirements: Vec<u32>,
 }
 impl MachineDescription {
     pub fn new(
