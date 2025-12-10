@@ -58,6 +58,31 @@ fn find_shortest_path_lights(
     Ok(res.1)
 }
 
+fn joltage_successors(
+    joltage: Vec<u32>,
+    desired_joltage: &[u32],
+    actions: &[ButtonPressAction],
+) -> impl Iterator<Item = (Vec<u32>, u32)> {
+    let take = if joltage
+        .iter()
+        .enumerate()
+        .any(|(i, j)| *j >= desired_joltage[i])
+    {
+        0
+    } else {
+        actions.len()
+    };
+
+    actions
+        .iter()
+        .map(move |action| {
+            let mut new_joltage = joltage.clone();
+            apply_joltage_action(&mut new_joltage, action).expect("Invalid action");
+            (new_joltage, 1)
+        })
+        .take(take)
+}
+
 fn find_shortest_path_joltage(
     desired_joltage: &[u32],
     actions: &[ButtonPressAction],
@@ -65,37 +90,7 @@ fn find_shortest_path_joltage(
     let start_joltage = vec![0; desired_joltage.len()];
     let res = pathfinding::directed::dijkstra::dijkstra(
         &start_joltage,
-        |joltage| {
-            println!("Joltage: {joltage:?}, Desired Joltage: {desired_joltage:?}");
-            let take = if joltage
-                .iter()
-                .enumerate()
-                .any(|(i, j)| *j > desired_joltage[i])
-            {
-                0
-            } else {
-                actions.len()
-            };
-            let joltage = joltage.clone();
-
-            actions
-                .iter()
-                .map(move |action| {
-                    let mut new_joltage = joltage.clone();
-                    apply_joltage_action(&mut new_joltage, action).expect("Invalid action");
-                    (new_joltage, 1)
-                })
-                .take(take)
-        },
-        // |joltage| {
-        //     return 1;
-        //     let distance = joltage
-        //         .iter()
-        //         .enumerate()
-        //         .map(|(i, j)| (*j).abs_diff(desired_joltage[i]))
-        //         .sum::<u32>();
-        //     distance
-        // },
+        |joltage| joltage_successors(joltage.clone(), desired_joltage, actions),
         |joltage| *joltage == desired_joltage,
     )
     .ok_or_else(|| anyhow::anyhow!("No path found"))?;
