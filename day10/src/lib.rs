@@ -25,6 +25,14 @@ pub enum Light {
     Off,
     On,
 }
+impl Light {
+    pub fn toggle(&mut self) {
+        *self = match self {
+            Light::Off => Light::On,
+            Light::On => Light::Off,
+        };
+    }
+}
 
 impl Light {
     fn from_char(c: char) -> Result<Self> {
@@ -39,6 +47,27 @@ impl Light {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MachineState {
     lights: Vec<Light>,
+}
+impl MachineState {
+    pub fn new(lights: Vec<Light>) -> Self {
+        MachineState { lights }
+    }
+    pub fn from_len(len: usize) -> Self {
+        MachineState {
+            lights: vec![Light::Off; len],
+        }
+    }
+}
+impl MachineState {
+    pub fn apply_action(&mut self, action: &ButtonPressAction) -> Result<&[Light]> {
+        for toggle in action.toggles.iter() {
+            self.lights
+                .get_mut(*toggle)
+                .ok_or_else(|| anyhow::anyhow!("Invalid toggle: {}", toggle))?
+                .toggle();
+        }
+        Ok(&self.lights)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -68,5 +97,28 @@ impl MachineDescription {
             actions,
             joltage_requirements,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_machine_state_apply_action() {
+        // [.##.]
+        let mut machine_state = MachineState::from_len(4);
+
+        machine_state
+            .apply_action(&ButtonPressAction::new(vec![0, 2]))
+            .unwrap();
+        machine_state
+            .apply_action(&ButtonPressAction::new(vec![0, 1]))
+            .unwrap();
+
+        assert_eq!(
+            machine_state.lights,
+            vec![Light::Off, Light::On, Light::On, Light::Off]
+        );
     }
 }
