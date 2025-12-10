@@ -5,8 +5,20 @@ use anyhow::Result;
 /// An x,y position in a two-dimensional grid.
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct XY {
-    x: usize,
-    y: usize,
+    pub x: usize,
+    pub y: usize,
+}
+impl FromStr for XY {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (x, y) = s
+            .split_once(',')
+            .ok_or_else(|| anyhow::anyhow!("Invalid XY: {}", s))?;
+        Ok(XY {
+            x: x.parse()?,
+            y: y.parse()?,
+        })
+    }
 }
 
 impl std::hash::Hash for XY {
@@ -33,7 +45,7 @@ impl XY {
     }
 
     /// Returns an iterator of all adjacent positions, including diagonals.
-    pub fn adjacent_positions(&self) -> impl Iterator<Item = XY> + use<> {
+    pub fn adjacent_positions(&self) -> impl Iterator<Item = XY> {
         const DIRECTIONS: &[(isize, isize)] = &[
             // Up
             (-1, -1),
@@ -56,12 +68,15 @@ impl XY {
         })
     }
 
+    /// Returns the position one step down.
     pub fn down(&self) -> Option<XY> {
         self.y.checked_add(1).map(|y| XY::new(self.x, y))
     }
+    /// Returns the position one step to the left.
     pub fn left(&self) -> Option<XY> {
         self.x.checked_sub(1).map(|x| XY::new(x, self.y))
     }
+    /// Returns the position one step to the right.
     pub fn right(&self) -> Option<XY> {
         self.x.checked_add(1).map(|x| XY::new(x, self.y))
     }
@@ -80,6 +95,13 @@ impl<Inner: Clone> Clone for Grid<Inner> {
         }
     }
 }
+impl<Inner: Clone> Grid<Inner> {
+    pub fn new_sized(width: usize, height: usize, value: Inner) -> Self {
+        Grid {
+            cells: vec![vec![value; width]; height],
+        }
+    }
+}
 
 impl<Inner: FromStr> FromStr for Grid<Inner> {
     type Err = <Inner as FromStr>::Err;
@@ -91,6 +113,13 @@ impl<Inner> Grid<Inner>
 where
     Inner: FromStr,
 {
+    pub fn width(&self) -> usize {
+        self.cells.first().map(|row| row.len()).unwrap_or(0)
+    }
+    pub fn height(&self) -> usize {
+        self.cells.len()
+    }
+    /// Creates a grid from an iterator of lines, parsing each character as a cell.
     pub fn from_lines(
         lines: impl IntoIterator<Item = impl AsRef<str>>,
     ) -> Result<Self, <Inner as FromStr>::Err> {
@@ -182,15 +211,19 @@ impl<'a, Inner> CellInGrid<'a, Inner> {
         self.xy.clone()
     }
 
+    /// Gets the cell to the left of this cell.
     pub fn left(&self) -> Option<CellInGrid<'a, Inner>> {
         self.xy.left().and_then(|xy| self.grid.get(xy))
     }
+    /// Gets the cell to the right of this cell.
     pub fn right(&self) -> Option<CellInGrid<'a, Inner>> {
         self.xy.right().and_then(|xy| self.grid.get(xy))
     }
+    /// Gets the cell below this cell.
     pub fn down(&self) -> Option<CellInGrid<'a, Inner>> {
         self.xy.down().and_then(|xy| self.grid.get(xy))
     }
+    /// Gets both the left and right adjacent cells.
     pub fn left_right(&self) -> [Option<CellInGrid<'a, Inner>>; 2] {
         // Same trick: destructure self
         let CellInGrid { cell: _, xy, grid } = self;
@@ -201,24 +234,20 @@ impl<'a, Inner> CellInGrid<'a, Inner> {
         [left, right]
     }
 
+    /// Returns an iterator over cells adjacent in cardinal directions.
     pub fn cardinal_direction_adjacent_cells(&self) -> impl Iterator<Item = CellInGrid<'_, Inner>> {
         self.xy
             .adjacent_cardinal_positions()
             .filter_map(|xy| self.grid.get(xy))
     }
 
-    pub fn adjacent_cells_ref(&self) -> impl Iterator<Item = CellInGrid<'_, Inner>> {
+    /// Returns an iterator over all adjacent cells, including diagonals.
+    pub fn adjacent_cells(&self) -> impl Iterator<Item = CellInGrid<'_, Inner>> {
         self.xy
             .adjacent_positions()
             .filter_map(move |xy| self.grid.get(xy))
     }
 
-    /// Returns an iterator over all adjacent cells in the grid.
-    pub fn adjacent_cells(self) -> impl Iterator<Item = CellInGrid<'a, Inner>> {
-        // Same trick: destructure self
-        let CellInGrid { cell: _, xy, grid } = self;
-        xy.adjacent_positions().filter_map(move |xy| grid.get(xy))
-    }
     /// Gets the value stored in this cell.
     pub fn value(&self) -> &Inner {
         self.cell
@@ -230,7 +259,7 @@ impl<Inner> AsRef<Inner> for CellInGrid<'_, Inner> {
     }
 }
 
-/// Parses a string into a grid of cells.
+/// Parses a string into a grid of cells by splitting on newlines and parsing each character.
 pub fn parse_data_into_grid<Inner>(data: &str) -> Result<Grid<Inner>, <Inner as FromStr>::Err>
 where
     Inner: FromStr,
