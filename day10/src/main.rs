@@ -15,9 +15,9 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn part1(data: &[MachineDescription]) -> Result<usize> {
+fn part1(data: &[MachineDescription]) -> Result<u32> {
     Ok(data
-        .iter()
+        .par_iter()
         .map(|desc| {
             find_shortest_path_lights(&desc.desired_state, &desc.actions).expect("Invalid path")
         })
@@ -36,21 +36,25 @@ fn part2(data: &[MachineDescription]) -> Result<u32> {
         .sum::<u32>())
 }
 
+fn light_successors(
+    state: MachineState,
+    actions: &[ButtonPressAction],
+) -> impl Iterator<Item = (MachineState, u32)> {
+    actions.iter().map(move |action| {
+        let mut state = state.clone();
+        state.apply_action(action).expect("Invalid action");
+        (state, 1)
+    })
+}
+
 fn find_shortest_path_lights(
     desired_state: &MachineState,
     actions: &[ButtonPressAction],
-) -> Result<usize> {
+) -> Result<u32> {
     let start_state = MachineState::from_len(desired_state.len());
     let res = pathfinding::directed::dijkstra::dijkstra(
         &start_state,
-        |state| {
-            let state = state.clone();
-            actions.iter().map(move |action| {
-                let mut state = state.clone();
-                state.apply_action(action).expect("Invalid action");
-                (state, 1)
-            })
-        },
+        |state| light_successors(state.clone(), actions),
         |state| state == desired_state,
     )
     .ok_or_else(|| anyhow::anyhow!("No path found"))?;
@@ -58,16 +62,19 @@ fn find_shortest_path_lights(
     Ok(res.1)
 }
 
+fn overvoltage(joltage: &[u32], desired_joltage: &[u32]) -> bool {
+    joltage
+        .iter()
+        .enumerate()
+        .any(|(i, j)| *j > desired_joltage[i])
+}
+
 fn joltage_successors(
     joltage: Vec<u32>,
     desired_joltage: &[u32],
     actions: &[ButtonPressAction],
 ) -> impl Iterator<Item = (Vec<u32>, u32)> {
-    let take = if joltage
-        .iter()
-        .enumerate()
-        .any(|(i, j)| *j >= desired_joltage[i])
-    {
+    let take = if overvoltage(&joltage, desired_joltage) {
         0
     } else {
         actions.len()
