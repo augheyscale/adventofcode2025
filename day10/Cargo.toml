@@ -6,6 +6,6 @@ edition = "2024"
 [dependencies]
 anyhow.workspace = true
 common = { version = "0.1.0", path = "../common" }
-nom = "8.0.0"
-pathfinding = "4.14.0"
-rayon = "1.11.0"
+nom.workspace = true
+pathfinding.workspace = true
+rayon.workspace = true

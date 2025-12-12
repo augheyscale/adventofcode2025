@@ -1,10 +1,10 @@
 [package]
-name = "day9"
+name = "day11"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
 anyhow.workspace = true
 common = { version = "0.1.0", path = "../common" }
-itertools.workspace = true
-rayon.workspace = true
+pathfinding.workspace = true
+petgraph.workspace = true
